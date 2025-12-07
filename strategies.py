@@ -1,6 +1,6 @@
 import pandas as pd
 
-def sma_strategy(df, short_window=7, long_window=50):
+def sma_strategy(df, short_window=20, long_window=50):
     df["SMA_short"] = df["price"].rolling(short_window).mean()
     df["SMA_long"] = df["price"].rolling(long_window).mean()
 
@@ -10,5 +10,6 @@ def sma_strategy(df, short_window=7, long_window=50):
 
     # Avoid lookahead bias
     df["signal"] = df["signal"].shift(1).fillna(0)
+    
 
     return df
