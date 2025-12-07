@@ -1,19 +1,14 @@
-# long if > threshold | short if < -threshold
 import pandas as pd
 
-def momentum_strategy(prices: pd.Series, window: int = 5, threshold: float = 0.01):
-    returns = prices.pct_change(window)
-    signal = (returns > threshold).astype(int)       
-    signal[returns < -threshold] = -1                
-    return signal.fillna(0)
+def sma_strategy(df, short_window=20, long_window=50):
+    df["SMA_short"] = df["price"].rolling(short_window).mean()
+    df["SMA_long"] = df["price"].rolling(long_window).mean()
 
+    df["signal"] = 0
+    df.loc[df["SMA_short"] > df["SMA_long"], "signal"] = 1
+    df.loc[df["SMA_short"] < df["SMA_long"], "signal"] = -1
 
-def mean_reversion_strategy(prices: pd.Series, window: int = 20, z_threshold: float = 1.5):
-    ma = prices.rolling(window).mean()
-    std = prices.rolling(window).std()
+    # Avoid lookahead bias
+    df["signal"] = df["signal"].shift(1).fillna(0)
 
-    zscore = (prices - ma) / std
-
-    signal = (-zscore).apply(lambda z: 1 if z > z_threshold else (-1 if z < -z_threshold else 0))
-
-    return signal.fillna(0)
+    return df

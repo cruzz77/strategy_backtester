@@ -1,62 +1,54 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-
-from strategies import momentum_strategy, mean_reversion_strategy
-from backtester import Backtester
+from backtester import run_backtest
+from strategies import sma_strategy
+from utils import sharpe_ratio, max_drawdown
 
 st.set_page_config(page_title="Quant Backtester", layout="wide")
-st.title("Strategy Backtester")
 
-st.sidebar.header("Upload Data")
-file = st.sidebar.file_uploader("Upload CSV with 'price' column", type=["csv"])
+st.title("📈 Quant Strategy Backtester")
 
-st.sidebar.header("Strategy Type")
-strategy_type = st.sidebar.radio("Choose Strategy", ("Momentum", "Mean Reversion"))
+uploaded = st.file_uploader("Upload CSV with 'price' column", type=['csv'])
 
-st.sidebar.header("Parameters")
+# Strategy parameters
+short_window = st.sidebar.number_input("SMA Short Window", 2, 200, 20)
+long_window = st.sidebar.number_input("SMA Long Window", 5, 300, 50)
 
-if strategy_type == "Momentum":
-    window = st.sidebar.number_input("Momentum Window", 1, 100, 5)
-    threshold = st.sidebar.number_input("Return Threshold (%)", 0.0, 5.0, 1.0) / 100
-else:
-    window = st.sidebar.number_input("Mean Reversion Window", 5, 200, 20)
-    z_threshold = st.sidebar.number_input("Z-score Threshold", 0.1, 5.0, 1.5)
+if uploaded:
+    df = pd.read_csv(uploaded)
 
-
-if file:
-    df = pd.read_csv(file)
-
-    if "price" not in df:
-        st.error("CSV needs a `price` column.")
+    if "price" not in df.columns:
+        st.error("CSV must contain a 'price' column.")
         st.stop()
 
-    prices = df["price"]
+    df = sma_strategy(df, short_window, long_window)
+    df = run_backtest(df)
 
-    # Generate signals
-    if strategy_type == "Momentum":
-        signals = momentum_strategy(prices, window, threshold)
-    else:
-        signals = mean_reversion_strategy(prices, window, z_threshold)
-
-    # Run backtest
-    bt = Backtester(prices, signals)
-    result = bt.run()
-
+    # PLOTS
     st.subheader("📊 Equity Curve")
-    st.line_chart(result["equity_curve"])
+    st.line_chart(df["equity_curve"])
 
-    st.subheader("📈 Price + Signals")
-    st.line_chart(result[["price", "signal"]])
+    st.subheader("📈 Price + SMA Lines")
+    st.line_chart(df[["price", "SMA_short", "SMA_long"]])
 
-    st.subheader("📄 Metrics")
-    sharpe = Backtester.sharpe(result["strategy_returns"].dropna())
-    mdd = Backtester.max_drawdown(result["equity_curve"])
+    st.subheader("📉 Signals")
+    st.line_chart(df["signal"])
 
-    st.metric("Sharpe Ratio", f"{sharpe:.2f}")
-    st.metric("Max Drawdown", f"{mdd:.2%}")
+    # METRICS
+    st.header("📄 Metrics")
 
-    st.subheader("📄 Full Backtest Output")
-    st.dataframe(result)
+    sharpe = sharpe_ratio(df["strategy_returns"])
+    drawdown = max_drawdown(df["equity_curve"])
+
+    st.write("### Sharpe Ratio")
+    st.write(f"{sharpe:.2f}")
+
+    st.write("### Max Drawdown")
+    st.write(f"{drawdown * 100:.2f}%")
+
+    # TABLE
+    st.header("📄 Full Backtest Output")
+    st.dataframe(df)
+
 else:
-    st.info("Upload a CSV to start backtesting.")
+    st.info("Upload a CSV file to begin.")
