@@ -6,7 +6,7 @@ from utils import sharpe_ratio, max_drawdown
 
 st.set_page_config(page_title="Quant Backtester", layout="wide")
 
-st.title("📈 Quant Strategy Backtester")
+st.title("Strategy Backtester")
 
 
 uploaded = st.file_uploader("Upload CSV with 'price' column", type=['csv'])
